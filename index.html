@@ -1,408 +1,208 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Previous head content remains the same -->
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Circle Measurement App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circle Measurement Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pyodide/0.23.4/pyodide.js"></script>
     <style>
-        /* Previous styles remain the same */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-
         body {
-            background-color: #000;
-            padding: 0;
-            margin: 0;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-            position: fixed;
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
         }
-
         .container {
-            height: 100%;
-            width: 100%;
             display: flex;
             flex-direction: column;
-            background: black;
-        }
-
-        .header {
-            padding: 12px;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
-        .header h1 {
-            font-size: 18px;
-            color: white;
-            text-align: center;
-        }
-
-        .video-container {
-            flex: 1;
-            position: relative;
-            background: #000;
-            overflow: hidden;
-        }
-
-        #video, #capturedImage {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        #canvas {
-            display: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-
-        .placeholder {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            text-align: center;
-        }
-
-        .controls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 20px;
-            background: linear-gradient(transparent, rgba(0,0,0,0.8));
-            display: flex;
-            justify-content: space-around;
             align-items: center;
             gap: 20px;
-            z-index: 100;
         }
-
-        button {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 24px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.2s;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
-        .start-btn {
-            background-color: rgba(13, 110, 253, 0.9);
-            color: white;
-        }
-
-        .capture-btn {
-            background-color: rgba(255, 255, 255, 0.9);
-            color: black;
-            width: 70px;
-            height: 70px;
-            border-radius: 35px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .capture-btn::after {
-            content: '';
-            width: 54px;
-            height: 54px;
-            border-radius: 27px;
-            border: 2px solid #000;
-        }
-
-        .reset-btn {
-            background-color: rgba(108, 117, 125, 0.9);
-            color: white;
-        }
-
-        .switch-camera {
-            background-color: rgba(255, 255, 255, 0.3);
-            color: white;
-            width: 44px;
-            height: 44px;
-            border-radius: 22px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .result {
-            position: absolute;
-            top: 70px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 15px;
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+        #results {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
             display: none;
-            text-align: center;
-            z-index: 100;
         }
-
-        .result.visible {
-            display: block;
+        canvas {
+            max-width: 100%;
+            border: 1px solid #ccc;
         }
-
-        @supports (-webkit-touch-callout: none) {
-            .video-container {
-                height: -webkit-fill-available;
-            }
+        .loading {
+            display: none;
+            color: #666;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Circle Measurement App</h1>
-        </div>
-        <div class="video-container">
-            <video id="video" autoplay playsinline muted></video>
-            <img id="capturedImage" style="display: none;">
-            <canvas id="canvas"></canvas>
-            <div class="placeholder" id="placeholder">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-                <p>Camera view will appear here</p>
-            </div>
-        </div>
-        <div class="controls">
-            <button class="start-btn" id="startButton">Start Camera</button>
-            <button class="capture-btn" id="captureButton" disabled></button>
-            <button class="switch-camera" id="switchButton" disabled>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M23 4v6h-6M1 20v-6h6"></path>
-                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                </svg>
-            </button>
-            <button class="reset-btn" id="resetButton" disabled>Reset</button>
-        </div>
-        <div class="result" id="result">
-            <p>Measured Diameter: <span id="diameter">0</span> pixels</p>
-        </div>
+        <h1>Circle Measurement Tool</h1>
+        <p>Upload an image containing a dark circle on a lighter background:</p>
+        <input type="file" id="imageInput" accept="image/*">
+        <canvas id="previewCanvas"></canvas>
+        <div id="loading" class="loading">Processing...</div>
+        <div id="results"></div>
     </div>
 
     <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const capturedImage = document.getElementById('capturedImage');
-        const startButton = document.getElementById('startButton');
-        const captureButton = document.getElementById('captureButton');
-        const switchButton = document.getElementById('switchButton');
-        const resetButton = document.getElementById('resetButton');
-        const result = document.getElementById('result');
-        const diameterSpan = document.getElementById('diameter');
-        const placeholder = document.getElementById('placeholder');
-        
-        let stream = null;
-        let currentCamera = 'environment';
+        async function initPyodide() {
+            let pyodide = await loadPyodide();
+            await pyodide.loadPackage(['numpy', 'scikit-image']);
+            
+            await pyodide.runPythonAsync(`
+                import numpy as np
+                from skimage import filters, measure, morphology
+                from js import ImageData, Uint8ClampedArray
 
-        // Wait for video metadata to load before allowing capture
-        video.addEventListener('loadedmetadata', () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-        });
-
-        async function getAvailableCameras() {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            return devices.filter(device => device.kind === 'videoinput');
+                def process_image(image_data, width, height):
+                    # Convert ImageData to numpy array
+                    data = np.frombuffer(image_data, dtype=np.uint8)
+                    img = data.reshape((height, width, 4))
+                    
+                    # Convert to grayscale
+                    gray = np.dot(img[...,:3], [0.299, 0.587, 0.114])
+                    
+                    # Apply Otsu's thresholding
+                    thresh = filters.threshold_otsu(gray)
+                    binary = gray < thresh
+                    
+                    # Clean up binary image
+                    binary = morphology.remove_small_objects(binary)
+                    binary = morphology.remove_small_holes(binary)
+                    
+                    # Find contours
+                    contours = measure.find_contours(binary, 0.5)
+                    
+                    if not contours:
+                        return "No circle detected"
+                    
+                    # Find the largest contour (assumed to be the circle)
+                    largest_contour = max(contours, key=len)
+                    
+                    # Calculate properties
+                    props = measure.regionprops(binary.astype(int))[0]
+                    
+                    # Calculate area
+                    area = props.area
+                    
+                    # Calculate perimeter
+                    perimeter = props.perimeter
+                    
+                    # Calculate circularity
+                    circularity = 4 * np.pi * area / (perimeter ** 2)
+                    
+                    # Calculate diameters at different angles
+                    cx, cy = props.centroid
+                    angles = [0, 60, 120]
+                    diameters = []
+                    
+                    for angle in angles:
+                        rad = np.radians(angle)
+                        dx = np.cos(rad)
+                        dy = np.sin(rad)
+                        
+                        # Find intersection points with contour
+                        distances = []
+                        for point in largest_contour:
+                            px = point[0] - cx
+                            py = point[1] - cy
+                            dist = abs(px * dy - py * dx)
+                            distances.append(dist)
+                        
+                        diameter = np.max(distances) * 2
+                        diameters.append(diameter)
+                    
+                    avg_diameter = np.mean(diameters)
+                    
+                    return {
+                        'area': area,
+                        'circumference': perimeter,
+                        'diameters': diameters,
+                        'avg_diameter': avg_diameter,
+                        'circularity': circularity
+                    }
+            `);
+            
+            return pyodide;
         }
 
-        async function startCamera() {
+        let pyodide;
+        
+        // Initialize Pyodide when the page loads
+        window.addEventListener('load', async () => {
             try {
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
+                pyodide = await initPyodide();
+            } catch (error) {
+                console.error('Failed to initialize Pyodide:', error);
+            }
+        });
 
-                const constraints = {
-                    video: {
-                        facingMode: { exact: currentCamera },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
+        // Handle image upload
+        document.getElementById('imageInput').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const img = new Image();
+                img.onload = async () => {
+                    const canvas = document.getElementById('previewCanvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set canvas size to match image
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    // Draw image on canvas
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // Get image data
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // Show loading indicator
+                    document.getElementById('loading').style.display = 'block';
+                    document.getElementById('results').style.display = 'none';
+                    
+                    try {
+                        // Process image with Python
+                        const result = await pyodide.runPythonAsync(`
+                            process_image(${imageData.data.buffer}, ${canvas.width}, ${canvas.height})
+                        `);
+                        
+                        // Display results
+                        const resultsDiv = document.getElementById('results');
+                        if (typeof result === 'string') {
+                            resultsDiv.innerHTML = result;
+                        } else {
+                            resultsDiv.innerHTML = `
+                                <h2>Measurement Results:</h2>
+                                <p>Area: ${result.area.toFixed(2)} pixels²</p>
+                                <p>Circumference: ${result.circumference.toFixed(2)} pixels</p>
+                                <p>Diameters:</p>
+                                <ul>
+                                    <li>0°: ${result.diameters[0].toFixed(2)} pixels</li>
+                                    <li>60°: ${result.diameters[1].toFixed(2)} pixels</li>
+                                    <li>120°: ${result.diameters[2].toFixed(2)} pixels</li>
+                                </ul>
+                                <p>Average Diameter: ${result.avg_diameter.toFixed(2)} pixels</p>
+                                <p>Circularity: ${(result.circularity * 100).toFixed(2)}% 
+                                   (100% indicates perfect circle)</p>
+                            `;
+                        }
+                        resultsDiv.style.display = 'block';
+                    } catch (error) {
+                        console.error('Processing failed:', error);
+                        document.getElementById('results').innerHTML = 'Error processing image: ' + error.message;
+                        document.getElementById('results').style.display = 'block';
+                    } finally {
+                        document.getElementById('loading').style.display = 'none';
                     }
                 };
-
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
-                video.style.display = 'block';
-                capturedImage.style.display = 'none';
-                placeholder.style.display = 'none';
-                
-                // Update UI
-                startButton.disabled = true;
-                captureButton.disabled = false;
-                resetButton.disabled = false;
-                
-                const cameras = await getAvailableCameras();
-                switchButton.disabled = cameras.length < 2;
-                
-                result.classList.remove('visible');
-
-                if (screen.orientation && screen.orientation.lock) {
-                    try {
-                        await screen.orientation.lock('portrait');
-                    } catch (err) {
-                        console.log('Orientation lock failed:', err);
-                    }
-                }
-            } catch (err) {
-                if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
-                    try {
-                        const constraints = {
-                            video: {
-                                facingMode: currentCamera,
-                                width: { ideal: 1920 },
-                                height: { ideal: 1080 }
-                            }
-                        };
-                        stream = await navigator.mediaDevices.getUserMedia(constraints);
-                        video.srcObject = stream;
-                        video.style.display = 'block';
-                        placeholder.style.display = 'none';
-                        startButton.disabled = true;
-                        captureButton.disabled = false;
-                        resetButton.disabled = false;
-                    } catch (fallbackErr) {
-                        console.error('Camera access failed:', fallbackErr);
-                        alert('Could not access the camera. Please check permissions.');
-                    }
-                } else {
-                    console.error('Camera access failed:', err);
-                    alert('Could not access the camera. Please check permissions.');
-                }
-            }
-        }
-
-        startButton.addEventListener('click', startCamera);
-
-        switchButton.addEventListener('click', async () => {
-            currentCamera = currentCamera === 'environment' ? 'user' : 'environment';
-            await startCamera();
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
         });
-
-        captureButton.addEventListener('click', () => {
-            // Ensure canvas dimensions match video dimensions
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            
-            // Flip horizontally if using front camera
-            if (currentCamera === 'user') {
-                ctx.scale(-1, 1);
-                ctx.translate(-canvas.width, 0);
-            }
-            
-            // Draw the video frame to canvas
-            ctx.drawImage(video, 0, 0);
-            
-            // Create image from canvas
-            capturedImage.src = canvas.toDataURL('image/jpeg');
-            capturedImage.style.display = 'block';
-            video.style.display = 'none';
-
-            // Stop camera stream
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-
-            // Measure circle
-            measureCircle(ctx, canvas.width, canvas.height);
-
-            // Update UI
-            startButton.disabled = false;
-            captureButton.disabled = true;
-            switchButton.disabled = true;
-            resetButton.disabled = false;
-        });
-
-        resetButton.addEventListener('click', () => {
-            video.srcObject = null;
-            capturedImage.style.display = 'none';
-            video.style.display = 'block';
-            placeholder.style.display = 'flex';
-            startButton.disabled = false;
-            captureButton.disabled = true;
-            switchButton.disabled = true;
-            resetButton.disabled = true;
-            result.classList.remove('visible');
-        });
-
-        function measureCircle(ctx, width, height) {
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const data = imageData.data;
-            
-            let minX = width, maxX = 0, minY = height, maxY = 0;
-            const threshold = 128;
-
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const idx = (y * width + x) * 4;
-                    const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-                    
-                    if (brightness < threshold) {
-                        minX = Math.min(minX, x);
-                        maxX = Math.max(maxX, x);
-                        minY = Math.min(minY, y);
-                        maxY = Math.max(maxY, y);
-                    }
-                }
-            }
-
-            const diameterX = maxX - minX;
-            const diameterY = maxY - minY;
-            const avgDiameter = Math.round((diameterX + diameterY) / 2);
-            
-            diameterSpan.textContent = avgDiameter;
-            result.classList.add('visible');
-        }
-
-        // Prevent iOS Safari bouncing/scrolling
-        document.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-        }, { passive: false });
-
-        // Prevent double-tap zoom on iOS
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', (e) => {
-            const now = (new Date()).getTime();
-            if (now - lastTouchEnd <= 300) {
-                e.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, false);
     </script>
 </body>
 </html>
