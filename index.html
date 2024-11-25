@@ -35,16 +35,25 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-        #calibration {
+        #calibration, #controls {
             margin: 20px 0;
             padding: 10px;
             background-color: #f8f9fa;
             border-radius: 4px;
         }
-        input[type="number"] {
-            padding: 5px;
+        input[type="number"], button {
+            padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -57,23 +66,26 @@
             <label>Known diameter in mm (optional): </label>
             <input type="number" id="knownDiameter" step="0.1" min="0">
         </div>
+        <div id="controls">
+            <button id="analyzeButton" disabled>Analyze</button>
+        </div>
         <canvas id="previewCanvas"></canvas>
         <div id="results"></div>
     </div>
 
     <script>
+        let imageLoaded = false;
+
         function findCircle(imageData) {
             const width = imageData.width;
             const height = imageData.height;
             const data = imageData.data;
-            
-            // Convert to grayscale and find light pixels
+
             let points = [];
             let totalX = 0;
             let totalY = 0;
             let count = 0;
-            
-            // Calculate average brightness for adaptive thresholding
+
             let totalBrightness = 0;
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
@@ -83,16 +95,13 @@
                 }
             }
             const avgBrightness = totalBrightness / (width * height);
-            
-            // Adaptive threshold at 120% of average brightness
             const threshold = Math.min(255, avgBrightness * 1.2);
-            
-            // Find light pixels above threshold
+
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
                     const idx = (y * width + x) * 4;
                     const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-                    
+
                     if (brightness > threshold) {
                         points.push({x, y});
                         totalX += x;
@@ -101,32 +110,28 @@
                     }
                 }
             }
-            
-            if (count < 100) return null; // Minimum points for valid circle
-            
-            // Calculate center
+
+            if (count < 100) return null;
+
             const centerX = totalX / count;
             const centerY = totalY / count;
-            
-            // Calculate radius with outlier rejection
+
             let radii = [];
             points.forEach(point => {
                 const dx = point.x - centerX;
                 const dy = point.y - centerY;
                 radii.push(Math.sqrt(dx * dx + dy * dy));
             });
-            
-            // Sort radii and remove outliers (top and bottom 10%)
+
             radii.sort((a, b) => a - b);
             const trimStart = Math.floor(radii.length * 0.1);
             const trimEnd = Math.floor(radii.length * 0.9);
             radii = radii.slice(trimStart, trimEnd);
-            
-            // Calculate statistics from cleaned data
+
             const avgRadius = radii.reduce((a, b) => a + b) / radii.length;
             const maxRadius = Math.max(...radii);
             const minRadius = Math.min(...radii);
-            
+
             return {
                 center: {x: centerX, y: centerY},
                 radius: avgRadius,
@@ -148,58 +153,59 @@
                 img.onload = () => {
                     const canvas = document.getElementById('previewCanvas');
                     const ctx = canvas.getContext('2d');
-                    
-                    // Set canvas size to match image
+
                     canvas.width = img.width;
                     canvas.height = img.height;
-                    
-                    // Draw image
+
                     ctx.drawImage(img, 0, 0);
-                    
-                    // Get image data and find circle
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const circle = findCircle(imageData);
-                    
-                    if (circle) {
-                        // Draw detected circle
-                        ctx.beginPath();
-                        ctx.strokeStyle = '#00ff00';
-                        ctx.lineWidth = 2;
-                        ctx.arc(circle.center.x, circle.center.y, circle.radius, 0, 2 * Math.PI);
-                        ctx.stroke();
-                        
-                        // Calculate real-world measurements if calibration is provided
-                        const knownDiameter = document.getElementById('knownDiameter').value;
-                        const pixelToMm = knownDiameter ? knownDiameter / circle.diameter : null;
-                        
-                        // Display results
-                        const resultsDiv = document.getElementById('results');
-                        resultsDiv.innerHTML = 
-                            <h2>Measurement Results:</h2>
-                            <p>Diameter: ${circle.diameter.toFixed(1)} pixels
-                               ${pixelToMm ?  (${(circle.diameter * pixelToMm).toFixed(1)} mm) : ''}
-                            </p>
-                            <p>Circumference: ${circle.circumference.toFixed(1)} pixels
-                               ${pixelToMm ?  (${(circle.circumference * pixelToMm).toFixed(1)} mm) : ''}
-                            </p>
-                            <p>Area: ${circle.area.toFixed(1)} pixels²
-                               ${pixelToMm ?  (${(circle.area * pixelToMm * pixelToMm).toFixed(1)} mm²) : ''}
-                            </p>
-                            <p>Circularity: ${(circle.circularity * 100).toFixed(1)}%
-                               (100% indicates perfect circle)</p>
-                            <p>Confidence: ${(circle.confidence * 100).toFixed(1)}%</p>
-                        ;
-                        resultsDiv.style.display = 'block';
-                    } else {
-                        document.getElementById('results').innerHTML = 'No circle detected. Please ensure the image contains a light circle with good contrast to the background.';
-                        document.getElementById('results').style.display = 'block';
-                    }
+                    imageLoaded = true;
+                    document.getElementById('analyzeButton').disabled = false;
                 };
                 img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         });
+
+        document.getElementById('analyzeButton').addEventListener('click', () => {
+            if (!imageLoaded) return;
+
+            const canvas = document.getElementById('previewCanvas');
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const circle = findCircle(imageData);
+
+            if (circle) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                ctx.arc(circle.center.x, circle.center.y, circle.radius, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                const knownDiameter = document.getElementById('knownDiameter').value;
+                const pixelToMm = knownDiameter ? knownDiameter / circle.diameter : null;
+
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `
+                    <h2>Measurement Results:</h2>
+                    <p>Diameter: ${circle.diameter.toFixed(1)} pixels
+                       ${pixelToMm ? ` (${(circle.diameter * pixelToMm).toFixed(1)} mm)` : ''}
+                    </p>
+                    <p>Circumference: ${circle.circumference.toFixed(1)} pixels
+                       ${pixelToMm ? ` (${(circle.circumference * pixelToMm).toFixed(1)} mm)` : ''}
+                    </p>
+                    <p>Area: ${circle.area.toFixed(1)} pixels²
+                       ${pixelToMm ? ` (${(circle.area * pixelToMm * pixelToMm).toFixed(1)} mm²)` : ''}
+                    </p>
+                    <p>Circularity: ${(circle.circularity * 100).toFixed(1)}%
+                       (100% indicates perfect circle)</p>
+                    <p>Confidence: ${(circle.confidence * 100).toFixed(1)}%</p>
+                `;
+                resultsDiv.style.display = 'block';
+            } else {
+                document.getElementById('results').innerHTML = 'No circle detected. Please ensure the image contains a light circle with good contrast to the background.';
+                document.getElementById('results').style.display = 'block';
+            }
+        });
     </script>
 </body>
-
 </html>
