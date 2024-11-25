@@ -174,21 +174,21 @@
                         
                         // Display results
                         const resultsDiv = document.getElementById('results');
-                        resultsDiv.innerHTML = `
+                        resultsDiv.innerHTML = 
                             <h2>Measurement Results:</h2>
                             <p>Diameter: ${circle.diameter.toFixed(1)} pixels
-                               ${pixelToMm ? ` (${(circle.diameter * pixelToMm).toFixed(1)} mm)` : ''}
+                               ${pixelToMm ?  (${(circle.diameter * pixelToMm).toFixed(1)} mm) : ''}
                             </p>
                             <p>Circumference: ${circle.circumference.toFixed(1)} pixels
-                               ${pixelToMm ? ` (${(circle.circumference * pixelToMm).toFixed(1)} mm)` : ''}
+                               ${pixelToMm ?  (${(circle.circumference * pixelToMm).toFixed(1)} mm) : ''}
                             </p>
                             <p>Area: ${circle.area.toFixed(1)} pixels²
-                               ${pixelToMm ? ` (${(circle.area * pixelToMm * pixelToMm).toFixed(1)} mm²)` : ''}
+                               ${pixelToMm ?  (${(circle.area * pixelToMm * pixelToMm).toFixed(1)} mm²) : ''}
                             </p>
                             <p>Circularity: ${(circle.circularity * 100).toFixed(1)}%
                                (100% indicates perfect circle)</p>
                             <p>Confidence: ${(circle.confidence * 100).toFixed(1)}%</p>
-                        `;
+                        ;
                         resultsDiv.style.display = 'block';
                     } else {
                         document.getElementById('results').innerHTML = 'No circle detected. Please ensure the image contains a light circle with good contrast to the background.';
